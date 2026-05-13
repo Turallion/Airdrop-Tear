@@ -461,21 +461,55 @@ function drawCell(cell) {
   const bl = points[pointIndex(cell.x, cell.y + 1)];
   const br = points[pointIndex(cell.x + 1, cell.y + 1)];
 
-  const sx = (cell.x / COLS) * baseW;
-  const sy = (cell.y / ROWS) * baseH;
-  const sx2 = ((cell.x + 1) / COLS) * baseW;
-  const sy2 = ((cell.y + 1) / ROWS) * baseH;
-
   const texture = stageImages[stageIndex];
+  const textureW = texture.naturalWidth || texture.width || baseW;
+  const textureH = texture.naturalHeight || texture.height || baseH;
+  const sx = (cell.x / COLS) * textureW;
+  const sy = (cell.y / ROWS) * textureH;
+  const sx2 = ((cell.x + 1) / COLS) * textureW;
+  const sy2 = ((cell.y + 1) / ROWS) * textureH;
   const overlap = (GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).overlap;
   triangleMap(ctx, texture, sx, sy, sx2, sy, sx, sy2, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, overlap);
   triangleMap(ctx, texture, sx2, sy, sx2, sy2, sx, sy2, tr.x, tr.y, br.x, br.y, bl.x, bl.y, overlap);
+}
+
+function drawMobileScene(backing) {
+  coverDraw(stageImages[stageIndex]);
+  if (!backing || tearScore === 0) return;
+
+  ctx.save();
+  ctx.beginPath();
+  for (const cell of cells) {
+    if (cell.alive) continue;
+    const tl = points[pointIndex(cell.x, cell.y)];
+    const tr = points[pointIndex(cell.x + 1, cell.y)];
+    const br = points[pointIndex(cell.x + 1, cell.y + 1)];
+    const bl = points[pointIndex(cell.x, cell.y + 1)];
+    ctx.moveTo(tl.x, tl.y);
+    ctx.lineTo(tr.x, tr.y);
+    ctx.lineTo(br.x, br.y);
+    ctx.lineTo(bl.x, bl.y);
+    ctx.closePath();
+  }
+  ctx.clip();
+  coverDraw(backing);
+  ctx.restore();
 }
 
 function drawScene() {
   ctx.clearRect(0, 0, viewW, viewH);
   const backing = stageImages[stageIndex + 1] || finalImage;
   if (backing) coverDraw(backing);
+
+  if (activeAssetKey === "mobile") {
+    drawMobileScene(backing);
+    return;
+  }
+
+  if (tearScore === 0 && !transitioning) {
+    coverDraw(stageImages[stageIndex]);
+    return;
+  }
 
   for (const cell of cells) {
     drawCell(cell);
@@ -535,7 +569,6 @@ canvas.addEventListener("pointerdown", (event) => {
   pointer.px = pointer.x;
   pointer.py = pointer.y;
   pointer.lastAt = performance.now();
-  tearAround(pointer.x, pointer.y, CUT_RADIUS * 0.45);
   wake((GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).wakeFrames);
   canvas.setPointerCapture(event.pointerId);
   event.preventDefault();
