@@ -2,10 +2,11 @@ const canvas = document.getElementById("tear-canvas");
 const ctx = canvas.getContext("2d");
 const loading = document.getElementById("loading");
 const finalScreen = document.getElementById("final-screen");
+const finalScreenImage = document.getElementById("final-screen-image");
 const resetButton = document.getElementById("reset-button");
 
-const BASE_W = 1672;
-const BASE_H = 941;
+let baseW = 1672;
+let baseH = 941;
 const COLS = 38;
 const ROWS = 22;
 const ITERATIONS = 4;
@@ -21,14 +22,36 @@ const ADVANCE_DAMAGE_RATIO = 0.22;
 const ADVANCE_DELAY = 540;
 const H_CONSTRAINT_COUNT = (ROWS + 1) * COLS;
 
-const stageSources = [
-  "./assets/layer-1.png",
-  "./assets/layer-2.png",
-  "./assets/layer-3.png",
-  "./assets/layer-4.png",
-  "./assets/final.png",
-];
-const finalSource = "./assets/final-end.png";
+const MOBILE_QUERY = "(max-width: 720px)";
+
+const assetSets = {
+  desktop: {
+    width: 1672,
+    height: 941,
+    stages: [
+      "./assets/layer-4.png",
+      "./assets/layer-2.png",
+      "./assets/layer-3.png",
+      "./assets/layer-1.png",
+      "./assets/final.png",
+    ],
+    final: "./assets/final-end.png",
+  },
+  mobile: {
+    width: 941,
+    height: 1672,
+    stages: [
+      "./assets/mobile/layer-4.png",
+      "./assets/mobile/layer-2.png",
+      "./assets/mobile/layer-3.png",
+      "./assets/mobile/layer-1.png",
+      "./assets/mobile/final.png",
+    ],
+    final: "./assets/mobile/final-end.png",
+  },
+};
+
+let activeAssetKey = "";
 
 let dpr = 1;
 let viewW = 0;
@@ -79,7 +102,7 @@ function setupCanvas() {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
-  const ratio = BASE_W / BASE_H;
+  const ratio = baseW / baseH;
   let w = viewW;
   let h = w / ratio;
   if (h < viewH) {
@@ -390,10 +413,10 @@ function drawCell(cell) {
   const bl = points[pointIndex(cell.x, cell.y + 1)];
   const br = points[pointIndex(cell.x + 1, cell.y + 1)];
 
-  const sx = (cell.x / COLS) * BASE_W;
-  const sy = (cell.y / ROWS) * BASE_H;
-  const sx2 = ((cell.x + 1) / COLS) * BASE_W;
-  const sy2 = ((cell.y + 1) / ROWS) * BASE_H;
+  const sx = (cell.x / COLS) * baseW;
+  const sy = (cell.y / ROWS) * baseH;
+  const sx2 = ((cell.x + 1) / COLS) * baseW;
+  const sy2 = ((cell.y + 1) / ROWS) * baseH;
 
   const texture = stageImages[stageIndex];
   triangleMap(ctx, texture, sx, sy, sx2, sy, sx, sy2, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y);
@@ -498,7 +521,16 @@ canvas.addEventListener("pointercancel", () => {
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 resetButton.addEventListener("click", resetExperience);
 
-window.addEventListener("resize", () => {
+window.addEventListener("resize", async () => {
+  if (getAssetKey() !== activeAssetKey) {
+    loading.classList.remove("is-hidden");
+    await loadAssetSet();
+    setupCanvas();
+    resetExperience();
+    loading.classList.add("is-hidden");
+    return;
+  }
+
   setupCanvas();
   drawScene();
   wake(20);
@@ -510,11 +542,24 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-async function init() {
+function getAssetKey() {
+  return window.matchMedia(MOBILE_QUERY).matches ? "mobile" : "desktop";
+}
+
+async function loadAssetSet() {
+  activeAssetKey = getAssetKey();
+  const assets = assetSets[activeAssetKey];
+  baseW = assets.width;
+  baseH = assets.height;
+  finalScreenImage.src = assets.final;
   [stageImages, finalImage] = await Promise.all([
-    Promise.all(stageSources.map(loadImage)),
-    loadImage(finalSource),
+    Promise.all(assets.stages.map(loadImage)),
+    loadImage(assets.final),
   ]);
+}
+
+async function init() {
+  await loadAssetSet();
   setupCanvas();
   drawScene();
   loading.classList.add("is-hidden");
