@@ -16,14 +16,20 @@ const GRID_CONFIG = {
     dpr: 1.5,
     smoothingQuality: "high",
     overlap: 0.45,
+    tearStep: 16,
+    wakeFrames: 80,
+    settleFrames: 60,
   },
   mobile: {
-    cols: 18,
-    rows: 32,
-    iterations: 2,
+    cols: 12,
+    rows: 22,
+    iterations: 1,
     dpr: 1,
-    smoothingQuality: "medium",
-    overlap: 1.15,
+    smoothingQuality: "low",
+    overlap: 1.35,
+    tearStep: 24,
+    wakeFrames: 36,
+    settleFrames: 24,
   },
 };
 
@@ -300,7 +306,8 @@ function tearAround(x, y, radius) {
 
 function tearLine(x1, y1, x2, y2, radius) {
   const dist = Math.hypot(x2 - x1, y2 - y1);
-  const steps = Math.max(1, Math.ceil(dist / 16));
+  const config = GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop;
+  const steps = Math.max(1, Math.ceil(dist / config.tearStep));
   for (let i = 0; i <= steps; i += 1) {
     const t = i / steps;
     tearAround(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, radius);
@@ -379,8 +386,9 @@ function stepPhysics() {
 
 function maybeAdvance() {
   if (transitioning || finalScreen.classList.contains("is-visible")) return;
+  const isMobile = activeAssetKey === "mobile";
   const enoughMissing = aliveRatio() <= ADVANCE_ALIVE_RATIO;
-  const enoughSeparated = largestAliveIslandRatio() <= ADVANCE_ISLAND_RATIO;
+  const enoughSeparated = !isMobile && largestAliveIslandRatio() <= ADVANCE_ISLAND_RATIO;
   const enoughDamaged = tearDamageRatio() >= ADVANCE_DAMAGE_RATIO;
   if (!enoughMissing && !enoughSeparated && !enoughDamaged) return;
 
@@ -395,7 +403,7 @@ function maybeAdvance() {
     }
 
     buildCloth();
-    wake(60);
+    wake((GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).settleFrames);
     transitioning = false;
   }, ADVANCE_DELAY);
 }
@@ -488,7 +496,7 @@ function resetExperience() {
   pointer.down = false;
   buildCloth();
   drawScene();
-  wake(30);
+  wake((GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).settleFrames);
 }
 
 function wake(frames = 80) {
@@ -528,7 +536,7 @@ canvas.addEventListener("pointerdown", (event) => {
   pointer.py = pointer.y;
   pointer.lastAt = performance.now();
   tearAround(pointer.x, pointer.y, CUT_RADIUS * 0.45);
-  wake(70);
+  wake((GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).wakeFrames);
   canvas.setPointerCapture(event.pointerId);
   event.preventDefault();
 });
@@ -541,7 +549,7 @@ canvas.addEventListener("pointermove", (event) => {
 
   setPointer(event);
   pointer.lastAt = performance.now();
-  wake(80);
+  wake((GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).wakeFrames);
   event.preventDefault();
 });
 
@@ -574,7 +582,7 @@ window.addEventListener("resize", async () => {
 
   setupCanvas();
   drawScene();
-  wake(20);
+  wake((GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).settleFrames);
 });
 
 window.addEventListener("keydown", (event) => {
