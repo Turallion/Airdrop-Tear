@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Airdrop Tearable UI</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="tear-canvas" aria-label="Tearable airdrop canvas"></canvas>
+
+    <div id="loading" class="loading">Loading layers...</div>
+
+    <section id="final-screen" class="final-screen" aria-live="polite">
+      <img src="./assets/final-end.png" alt="Final follow screen" />
+      <div class="final-actions">
+        <button id="reset-button" type="button">Repeat</button>
+        <a class="follow-button" href="https://x.com/SherhanEth" target="_blank" rel="noopener noreferrer">Follow</a>
+      </div>
+    </section>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
