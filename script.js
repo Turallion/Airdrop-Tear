@@ -7,9 +7,29 @@ const resetButton = document.getElementById("reset-button");
 
 let baseW = 1672;
 let baseH = 941;
-const COLS = 38;
-const ROWS = 22;
-const ITERATIONS = 4;
+
+const GRID_CONFIG = {
+  desktop: {
+    cols: 38,
+    rows: 22,
+    iterations: 4,
+    dpr: 1.5,
+    smoothingQuality: "high",
+    overlap: 0.45,
+  },
+  mobile: {
+    cols: 18,
+    rows: 32,
+    iterations: 2,
+    dpr: 1,
+    smoothingQuality: "medium",
+    overlap: 1.15,
+  },
+};
+
+let COLS = GRID_CONFIG.desktop.cols;
+let ROWS = GRID_CONFIG.desktop.rows;
+let ITERATIONS = GRID_CONFIG.desktop.iterations;
 const GRAVITY = 0.055;
 const FRICTION = 0.984;
 const PULL_RADIUS = 116;
@@ -20,7 +40,7 @@ const ADVANCE_ALIVE_RATIO = 0.45;
 const ADVANCE_ISLAND_RATIO = 0.55;
 const ADVANCE_DAMAGE_RATIO = 0.22;
 const ADVANCE_DELAY = 540;
-const H_CONSTRAINT_COUNT = (ROWS + 1) * COLS;
+let H_CONSTRAINT_COUNT = (ROWS + 1) * COLS;
 
 const MOBILE_QUERY = "(max-width: 720px)";
 
@@ -38,8 +58,8 @@ const assetSets = {
     final: "./assets/final-end.png",
   },
   mobile: {
-    width: 941,
-    height: 1672,
+    width: 1080,
+    height: 1920,
     stages: [
       "./assets/mobile/layer-4.png",
       "./assets/mobile/layer-2.png",
@@ -91,7 +111,8 @@ function pointIndex(x, y) {
 }
 
 function setupCanvas() {
-  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const config = GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop;
+  dpr = Math.min(window.devicePixelRatio || 1, config.dpr);
   viewW = window.innerWidth;
   viewH = window.innerHeight;
   canvas.width = Math.round(viewW * dpr);
@@ -100,7 +121,7 @@ function setupCanvas() {
   canvas.style.height = `${viewH}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  ctx.imageSmoothingQuality = config.smoothingQuality;
 
   const ratio = baseW / baseH;
   let w = viewW;
@@ -383,7 +404,26 @@ function coverDraw(image) {
   ctx.drawImage(image, page.x, page.y, page.w, page.h);
 }
 
-function triangleMap(g, source, sx0, sy0, sx1, sy1, sx2, sy2, dx0, dy0, dx1, dy1, dx2, dy2) {
+function expandTriangle(dx0, dy0, dx1, dy1, dx2, dy2, amount) {
+  if (!amount) return [dx0, dy0, dx1, dy1, dx2, dy2];
+
+  const cx = (dx0 + dx1 + dx2) / 3;
+  const cy = (dy0 + dy1 + dy2) / 3;
+  const expandPoint = (x, y) => {
+    const vx = x - cx;
+    const vy = y - cy;
+    const length = Math.hypot(vx, vy) || 1;
+    return [x + (vx / length) * amount, y + (vy / length) * amount];
+  };
+
+  const p0 = expandPoint(dx0, dy0);
+  const p1 = expandPoint(dx1, dy1);
+  const p2 = expandPoint(dx2, dy2);
+  return [p0[0], p0[1], p1[0], p1[1], p2[0], p2[1]];
+}
+
+function triangleMap(g, source, sx0, sy0, sx1, sy1, sx2, sy2, dx0, dy0, dx1, dy1, dx2, dy2, overlap = 0) {
+  [dx0, dy0, dx1, dy1, dx2, dy2] = expandTriangle(dx0, dy0, dx1, dy1, dx2, dy2, overlap);
   const denom = sx0 * (sy1 - sy2) + sx1 * (sy2 - sy0) + sx2 * (sy0 - sy1);
   if (Math.abs(denom) < 0.0001) return;
 
@@ -419,8 +459,9 @@ function drawCell(cell) {
   const sy2 = ((cell.y + 1) / ROWS) * baseH;
 
   const texture = stageImages[stageIndex];
-  triangleMap(ctx, texture, sx, sy, sx2, sy, sx, sy2, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y);
-  triangleMap(ctx, texture, sx2, sy, sx2, sy2, sx, sy2, tr.x, tr.y, br.x, br.y, bl.x, bl.y);
+  const overlap = (GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop).overlap;
+  triangleMap(ctx, texture, sx, sy, sx2, sy, sx, sy2, tl.x, tl.y, tr.x, tr.y, bl.x, bl.y, overlap);
+  triangleMap(ctx, texture, sx2, sy, sx2, sy2, sx, sy2, tr.x, tr.y, br.x, br.y, bl.x, bl.y, overlap);
 }
 
 function drawScene() {
@@ -548,6 +589,12 @@ function getAssetKey() {
 
 async function loadAssetSet() {
   activeAssetKey = getAssetKey();
+  const config = GRID_CONFIG[activeAssetKey] || GRID_CONFIG.desktop;
+  COLS = config.cols;
+  ROWS = config.rows;
+  ITERATIONS = config.iterations;
+  H_CONSTRAINT_COUNT = (ROWS + 1) * COLS;
+
   const assets = assetSets[activeAssetKey];
   baseW = assets.width;
   baseH = assets.height;
