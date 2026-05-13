@@ -384,12 +384,28 @@ function stepPhysics() {
   }
 }
 
+function getAdvanceThresholds() {
+  const isMobileFinalCut = activeAssetKey === "mobile" && stageIndex === stageImages.length - 1;
+  if (!isMobileFinalCut) {
+    return {
+      aliveRatio: ADVANCE_ALIVE_RATIO,
+      damageRatio: ADVANCE_DAMAGE_RATIO,
+    };
+  }
+
+  return {
+    aliveRatio: 1 - (1 - ADVANCE_ALIVE_RATIO) * 0.5,
+    damageRatio: ADVANCE_DAMAGE_RATIO * 0.5,
+  };
+}
+
 function maybeAdvance() {
   if (transitioning || finalScreen.classList.contains("is-visible")) return;
   const isMobile = activeAssetKey === "mobile";
-  const enoughMissing = aliveRatio() <= ADVANCE_ALIVE_RATIO;
+  const thresholds = getAdvanceThresholds();
+  const enoughMissing = aliveRatio() <= thresholds.aliveRatio;
   const enoughSeparated = !isMobile && largestAliveIslandRatio() <= ADVANCE_ISLAND_RATIO;
-  const enoughDamaged = tearDamageRatio() >= ADVANCE_DAMAGE_RATIO;
+  const enoughDamaged = tearDamageRatio() >= thresholds.damageRatio;
   if (!enoughMissing && !enoughSeparated && !enoughDamaged) return;
 
   transitioning = true;
