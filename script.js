@@ -46,6 +46,7 @@ const ADVANCE_ALIVE_RATIO = 0.45;
 const ADVANCE_ISLAND_RATIO = 0.55;
 const ADVANCE_DAMAGE_RATIO = 0.22;
 const ADVANCE_DELAY = 540;
+const POINTER_IDLE_TIMEOUT = 15000;
 let H_CONSTRAINT_COUNT = (ROWS + 1) * COLS;
 
 const MOBILE_QUERY = "(max-width: 720px)";
@@ -554,12 +555,13 @@ function wake(frames = 80) {
 }
 
 function frame() {
-  if (pointer.down && performance.now() - pointer.lastAt > 1800) {
+  if (pointer.down && performance.now() - pointer.lastAt > POINTER_IDLE_TIMEOUT) {
     pointer.down = false;
   }
 
   if (!finalScreen.classList.contains("is-visible")) {
-    if (pointer.down || transitioning || activeFrames > 0) {
+    const shouldAnimate = pointer.down || transitioning || activeFrames > 0 || tearScore > 0;
+    if (shouldAnimate) {
       stepPhysics();
       maybeAdvance();
       drawScene();
